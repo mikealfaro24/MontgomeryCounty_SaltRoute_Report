@@ -1,0 +1,704 @@
+---
+title: "SFCapstone"
+author: "Mike Alfaro"
+date: "2024-04-18"
+output: html_document
+---
+
+```{r warning=FALSE, message=FALSE}
+# Load Libraries
+library(sf)
+library(leaflet)
+
+# Load Watershed shapefiles
+StreamConditions <- st_read("/Users/mikea/Desktop/Capstone/StreamCond_2016_2021/StreamCond_2016_2021.shp")
+Watershed_12Dig <- st_read("/Users/mikea/Desktop/Capstone/DEP_Subwatersheds_12DIG/DEP_Subwatersheds_12DIG.shp")
+
+# Transform the coordinate reference system
+StreamConditions <- st_transform(StreamConditions, crs = 4326)
+Watershed_12Dig <- st_transform(Watershed_12Dig , crs = 4326)
+
+# Rename specific columns
+names(StreamConditions)[names(StreamConditions) == "PopUp"] <- "Info"
+names(StreamConditions)[names(StreamConditions) == "Narrative"] <- "StreamConditions"
+
+
+unique(StreamConditions$StreamConditions)
+
+```
+
+```{r}
+# Read the shapefiles of routes
+SilverSpring <- st_read("~/Desktop/capstone/SilverSpring_BrineRoutes/SilverSpring_BrineRoutes.shp")
+Bethesda <- st_read("/Users/mikea/Desktop/Capstone/Bethesda_BrineRoutes/Bethesda_BrineRoutes.shp")
+Colesville <- st_read("/Users/mikea/Desktop/Capstone/Colesville_BrineRoutes/Colesville_BrineRoutes.shp")
+Gaithersburg_East <- st_read("/Users/mikea/Desktop/Capstone/GE_BrineRoutes.shp/GE_BrineRoutes.shp")
+Gaithersburg_West <- st_read("/Users/mikea/Desktop/Capstone/GW_BrineRoutes/GW_BrineRoutes.shp")
+Poolesville <- st_read("/Users/mikea/Desktop/Capstone/Poolesville_BrineRoutes/Poolesville_BrineRoutes.shp")
+Damascus <- st_read("/Users/mikea/Desktop/Capstone/Damascus_BrineRoutes/Damascus_BrineRoutes.shp")
+
+# Transform the CRS
+SilverSpring <- st_transform(SilverSpring, crs = 4326)
+Bethesda <- st_transform(Bethesda, crs = 4326)
+Colesville <- st_transform(Colesville, crs = 4326)
+Gaithersburg_East <- st_transform(Gaithersburg_East, crs = 4326)
+Gaithersburg_West <- st_transform(Gaithersburg_West, crs = 4326)
+Poolesville <- st_transform(Poolesville, crs = 4326)
+Damascus <- st_transform(Damascus, crs = 4326)
+```
+
+```{r}
+# Assign Colors to the Condition of the Tributaries
+# Provided By GPT
+getColor <- function(health) {
+  ifelse(health == "Excellent", "#87b3da",
+         ifelse(health == "Good", "#aad691",
+                ifelse(health == "Fair", "#f6f58c",
+                       ifelse(health == "Poor", "#ec938d", "#8b8b8b"))))
+}
+```
+
+```{r}
+# Building first map with background tiles and stream conditions using Leaflet
+build <- leaflet() %>% 
+  addTiles(group = "OSM (Default)") %>% 
+  addProviderTiles("Esri.WorldGrayCanvas", group = "Esri World Gray Canvas") %>%
+  addProviderTiles("Esri.WorldTopoMap", group = "Esri World Topo Map") %>%
+  addPolygons(
+    data = StreamConditions,
+    fillColor = ~getColor(StreamConditions), 
+    color = "#BDBDC3", 
+    fillOpacity = 0.8,
+    weight = 1,
+    popup = ~paste(
+      "<strong>Tributary:</strong>", Tributary, "<br/>",
+      "<strong>Stream Conditions:</strong>", StreamConditions, "<br/>",
+      "<strong>Info:</strong>", Info
+    ),
+    group = "Stream Conditions" 
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build
+```
+
+```{r}
+# Adding the Watershed(12-Dig) Layer
+
+build2 <- build %>% 
+  addPolygons(
+    data = Watershed_12Dig,
+    popup = ~as.character(MD12DIG_N),
+    fillColor = NA,
+    color = "blue", 
+    weight = 1,
+    fillOpacity = 0,
+    group = "SubWatersheds (12-DIG)" 
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build2
+```
+
+```{r}
+# Adding Silver Spring Route
+build3 <- build2 %>% 
+  addPolylines(
+    data = SilverSpring,
+    color = "lightgray", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Silver Spring Routes"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes" ),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build3
+```
+
+
+```{r}
+# Adding Bethesda Route
+build4 <- build3 %>% 
+  addPolylines(
+    data = Bethesda,
+    color = "#171717", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Bethesda"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build4
+```
+
+
+```{r}
+# Adding Colesville Route
+build5 <- build4 %>% 
+  addPolylines(
+    data = Colesville,
+    color = "#7876B1", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Colesville"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build5
+```
+
+```{r}
+# Adding Gaithersburg East Route
+build6 <- build5 %>% 
+  addPolylines(
+    data = Gaithersburg_East,
+    color = "#213A5C", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Gaithersburg East"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build6
+```
+
+```{r}
+# Adding Gaithersburg West Route
+build7 <- build6 %>% 
+  addPolylines(
+    data = Gaithersburg_West,
+    color = "#FFDC91", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Gaithersburg West"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East", "Gaithersburg West"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build7
+```
+
+```{r}
+# Adding Poolesville Route
+build8 <- build7 %>% 
+  addPolylines(
+    data = Poolesville,
+    color = "#4DBBD5", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Poolesville"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East", "Gaithersburg West", "Poolesville"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build8
+```
+
+```{r}
+#  Adding Damascus Route
+build9 <- build8 %>% 
+  addPolylines(
+    data = Damascus,
+    color = "#F39B7F", 
+    weight = 2.5, 
+    opacity = 1,
+    group = "Damascus"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East", "Gaithersburg West", "Poolesville","Damascus"),
+    options = layersControlOptions(collapsed = TRUE) 
+  )
+build9
+```
+
+
+```{r}
+# Adding Locate me and Home Button
+# Provided by GPT
+buildlocation <- build9 %>%
+  addEasyButton(
+    easyButton(
+      icon = "fa-location-arrow",
+      title = "Locate Me",
+      onClick = JS("function(btn, map) {
+                    map.locate({
+                      setView: true, 
+                      maxZoom: 16,
+                      enableHighAccuracy: true
+                    }).on('locationfound', function(e) {
+                      if (!map.locateMarker) {
+                        map.locateMarker = L.marker([e.latitude, e.longitude]).addTo(map);
+                      } else {
+                        map.locateMarker.setLatLng([e.latitude, e.longitude]);
+                      }
+                    });
+                  }")
+    )
+  ) %>%
+  addEasyButton(
+    easyButton(
+      icon = "fa-home",
+      title = "Reset Home",
+      onClick = JS("function(btn, map) {
+                    map.setView([39.117351, -77.157748], 10);
+                    if (map.locateMarker) {
+                      map.removeLayer(map.locateMarker);
+                      map.locateMarker = null;
+                    }
+                  }")
+    )
+  )
+buildlocation
+
+```
+
+```{r}
+# Save Map
+library(htmlwidgets)
+saveWidget(widget = buildlocation, file= "MontgomeryCountyRouteMap.html")
+```
+
+```{r}
+# Checking Columns 
+colnames(SilverSpring)
+```
+```{r}
+# Checking columns to ensure they are the same
+colnames(Poolesville)
+```
+```{r}
+# Checking the values in this column which tells us route type
+unique(SilverSpring$SNOW_PRIOR)
+```
+
+```{r warning=FALSE, message=FALSE}
+# Merging data
+library(tidyverse)
+
+
+snow_route_datasets <- list(
+  SilverSpring = SilverSpring,
+  Bethesda = Bethesda,
+  Colesville = Colesville,
+  Gaithersburg_East = Gaithersburg_East,
+  Gaithersburg_West = Gaithersburg_West,
+  Poolesville = Poolesville,
+  Damascus = Damascus
+)
+
+# Combine the datasets
+snow_routes <- bind_rows(snow_route_datasets, .id = "Route_Name")
+
+snow_routes$Route_Name <- gsub("_", " ", snow_routes$Route_Name)
+
+unique(snow_routes$Route_Name)
+
+```
+
+
+```{r}
+# Double check
+unique(snow_routes$Route_Name)
+```
+
+```{r}
+unique(snow_routes$SNOW_PRIOR)
+```
+
+
+```{r}
+# Replace values in the SNOW_PRIOR column
+snow_routes$SNOW_PRIOR <- ifelse(snow_routes$SNOW_PRIOR == "E", "Emergency", "Non-Emergency")
+
+
+unique(snow_routes$SNOW_PRIOR)
+
+```
+
+```{r}
+# Looking at route numbers for emergency routes
+unique(snow_routes$PLAN1)
+```
+```{r}
+# Looking at route numbers for non-emergency routes
+unique(snow_routes$PLOW1)
+```
+```{r}
+# Only emergency routes
+emergency_routes <- snow_routes %>%
+  filter(SNOW_PRIOR == "Emergency")
+
+
+head(emergency_routes)
+unique(emergency_routes$SNOW_PRIOR)
+```
+```{r}
+unique(emergency_routes$Route_Name)
+```
+
+
+
+```{r}
+# Adding emergency layer
+build10 <- buildlocation %>%
+  addPolylines(
+    data = emergency_routes,
+    color = "red",  
+    weight = 5,
+    opacity = 1,
+    group = "Emergency Routes",
+    popup = ~paste(
+      "Route Name:", Route_Name, "<br>",
+      "Snow Priority:", SNOW_PRIOR, "<br>",
+      "Route Code:", PLAN1
+    )
+  ) %>%
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East", "Gaithersburg West", "Poolesville","Damascus", "Emergency Routes"),
+    options = layersControlOptions(collapsed = TRUE) 
+  ) %>% 
+  hideGroup("Emergency Routes")
+
+
+build10
+
+```
+
+
+```{r}
+# Non-emergency routes
+non_emergency_routes <- snow_routes %>%
+  filter(SNOW_PRIOR == "Non-Emergency")
+
+
+unique(non_emergency_routes$Route_Name)
+
+```
+
+
+```{r}
+# Adding non-emergency routes
+build11 <- build10 %>%
+  addPolylines(
+    data = non_emergency_routes,
+    color = "blue", 
+    weight = 5,
+    opacity = 1,
+    group = "Non-Emergency Routes",
+    popup = ~paste(
+      "Route Name:", Route_Name, "<br>",
+      "Snow Priority:", SNOW_PRIOR, "<br>",
+      "Route Code:", PLOW1
+    )
+  ) %>% 
+  addLayersControl(
+    baseGroups = c("OSM (Default)", "Esri World Gray Canvas", "Esri World Topo Map"),
+    overlayGroups = c("Stream Conditions", "SubWatersheds (12-DIG)", "Silver Spring Routes","Bethesda","Colesville", "Gaithersburg East", "Gaithersburg West", "Poolesville","Damascus", "Emergency Routes", "Non-Emergency Routes"),
+    options = layersControlOptions(collapsed = TRUE) 
+  ) %>% 
+  hideGroup(c("Emergency Routes", "Non-Emergency Routes"))
+
+
+build11
+
+```
+
+
+```{r}
+# Saving Map
+saveWidget(widget = build11, file = "MontgomeryCountyRouteMap.html")
+```
+
+
+```{r}
+# New dataframe with routes on streamconditions
+intersection <- st_intersection(snow_routes, StreamConditions)
+```
+
+```{r}
+# Add meters
+intersection$length_meters <- st_length(intersection)
+unique(intersection)
+```
+
+```{r}
+summary(intersection$length_meters)
+```
+
+
+
+```{r}
+# Convert meters to miles (1 meter = 0.000621371 miles)
+intersection$length_miles <- intersection$length_meters * 0.000621371
+
+```
+
+```{r}
+summary(intersection$length_miles)
+```
+
+
+```{r}
+unique(intersection$Route_Name)
+```
+
+```{r}
+# Check the result
+table(intersection$StreamConditions)
+```
+
+```{r}
+# Aggregate 
+intersection_counts <- table(intersection$Route_Name, intersection$StreamConditions)
+
+head(intersection_counts)
+
+```
+
+```{r}
+# Transforming into dataframe
+intersection_df2 <- as.data.frame(intersection_counts)
+
+colnames(intersection_df2) <- c("Route_Name", "Stream_Condition", "Count")
+
+intersection_df2 <- intersection_df2 %>%
+  arrange(desc(Count))
+
+head(intersection_df2)
+```
+
+
+```{r}
+library(ggplot2)
+
+# Define colors for each stream condition
+stream_colors <- c("Excellent" = "#87b3da", "Good" = "#aad691", "Fair" = "#f6f58c", "Poor" = "#ec938d")
+
+ggplot(intersection_df2, aes(x = Route_Name, y = Count, fill = Stream_Condition)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = stream_colors) +
+  labs(title = "Intersection Counts by Salt Route and Stream Condition",
+       x = "Salt Route",
+       y = "Intersection Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# Using Plotly
+library(plotly)
+
+intersection_df2 <- intersection_df2 %>%
+  filter(!Stream_Condition %in% c("No stream monitoring data available for this area. Property access denied",
+                                   "No stream monitoring data available for this area. Drains to stream outside of County boundary.",
+                                   "No stream monitoring data available for this area. Area streams not sampleable."))
+
+p <- plot_ly(intersection_df2, x = ~Route_Name, y = ~Count, type = 'bar', color = ~Stream_Condition,
+        colors = stream_colors, 
+        text = ~paste("Salt Route:", Route_Name, "<br>",
+                      "Intersection Count:", Count, "<br>",
+                      "Stream Condition:", Stream_Condition),
+        hoverinfo = "text",
+        marker = list(line = list(color = 'black', width = 1))) %>%
+  layout(title = "Intersection Counts by Salt Route and Stream Condition",
+         xaxis = list(title = "Salt Route"),
+         yaxis = list(title = "Intersection Count"),
+         barmode = 'stack')
+
+p
+
+```
+
+
+```{r}
+library(htmlwidgets)
+saveWidget(widget = p, file = "Plotly_SaltRoute.html")
+```
+
+
+
+```{r}
+# Checking name
+colnames(intersection)
+```
+```{r}
+view(intersection)
+```
+
+```{r}
+summary(intersection$length_meters)
+```
+
+
+```{r}
+summary(intersection$length_miles)
+```
+
+
+```{r}
+unique(intersection$Route_Name)
+```
+
+
+```{r}
+# Adding estimate of salt usage 
+salt_rates <- data.frame(
+  Route_Name = c("Bethesda", "Colesville", "Damascus", "Gaithersburg East", "Gaithersburg West", "Poolesville", "SilverSpring"),
+  Emergency_Salt_Rate = c(870, 324, 4285, 739, 1914, 1122, 2126),
+  Residential_Salt_Rate = c(787, 57, 1535, 47, 86, 488, 66)
+)
+```
+
+```{r}
+view(salt_rates)
+```
+
+```{r}
+# Adding salt rate data
+routes_with_salt_rates <- merge(intersection, salt_rates, by = "Route_Name")
+```
+
+```{r}
+view(routes_with_salt_rates)
+```
+
+
+```{r}
+unique(routes_with_salt_rates$Residential_Salt_Rate)
+```
+
+```{r}
+colnames(routes_with_salt_rates)
+```
+
+```{r}
+unique(routes_with_salt_rates$SNOW_PRIOR)
+```
+
+```{r}
+# Multply length by salt rate
+routes_with_salt_rates$Salt_Usage <- ifelse(routes_with_salt_rates$SNOW_PRIOR == "Emergency", 
+                                  routes_with_salt_rates$length_miles *routes_with_salt_rates$Emergency_Salt_Rate, 
+                                  routes_with_salt_rates$length_miles *  routes_with_salt_rates$Residential_Salt_Rate)
+```
+
+```{r}
+view(routes_with_salt_rates)
+```
+
+```{r}
+# Tributaries with most salt usage 
+top_tributaries <- routes_with_salt_rates %>%
+  group_by(Tributary, Route_Name) %>%
+  summarise(total_salt_usage = sum(Salt_Usage)) %>%
+  arrange(desc(total_salt_usage))
+```
+
+```{r}
+head(top_tributaries)
+```
+
+```{r}
+top_5_tributaries <- top_tributaries %>%
+  arrange(desc(total_salt_usage)) %>% 
+  filter(row_number() <= 5)
+```
+
+
+```{r}
+view(top_5_tributaries)
+```
+
+
+```{r}
+# Route by depot
+route_salt_depot<- routes_with_salt_rates %>%
+  group_by(Route_Name) %>%
+  summarise(total_salt_usage = sum(Salt_Usage)) %>%
+  arrange(desc(total_salt_usage))
+
+route_salt_depot
+
+```
+
+```{r}
+# Tributraies with route names
+top_tributaries_routes <- routes_with_salt_rates %>%
+  group_by(Tributary, Route_Name) %>%
+  summarise(total_miles = sum(length_miles)) %>%
+  group_by(Tributary) %>%
+  arrange(desc(total_miles)) %>%
+  top_n(5, total_miles)
+
+top_tributaries_routes
+
+```
+
+```{r}
+# Emergency route usgaeg by depot
+emergency_routes_salt2 <- routes_with_salt_rates %>%
+  filter(SNOW_PRIOR == "Emergency") %>%
+  group_by(Route_Name) %>%
+  summarise(total_salt_usage = sum(Salt_Usage)) %>% 
+  arrange(desc(total_salt_usage))
+
+emergency_routes_salt2
+```
+
+
+
+```{r}
+# Plot the top 5 tributaries based on salt usage
+ggplot(data = top_tributaries[1:5, ], aes(x = Tributary, y = total_salt_usage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Top 5 Tributaries by Salt Usage", x = "Tributary", y = "Total Salt Usage") +
+  theme_minimal()
+
+```
+
+```{r}
+# Create a subset containing only the top 5 tributaries
+top_5_subset <- top_tributaries[1:5, ]
+
+# Now plot the top 5 tributaries based on salt usage
+ggplot(data = top_5_subset, aes(x = Tributary, y = total_salt_usage, fill = Route_Name)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Top 5 Tributaries by Salt Usage", x = "Tributary", y = "Total Salt Usage") +
+  theme_minimal()
+
+```
+
+```{r}
+# Now plot the top 5 tributaries based on salt usage, filled by Route_Name
+ggplot(data = top_5_subset, aes(x = Tributary, y = total_salt_usage, fill = Route_Name)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Top 5 Tributaries by Salt Usage", x = "Tributary", y = "Total Salt Usage in Tons") +
+  theme_minimal() +
+  theme(legend.position = "bottom")  
+
+```
+
